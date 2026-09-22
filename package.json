@@ -1,0 +1,13 @@
+{
+  "name": "chess-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chess game review app (PGN + Stockfish)",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/core": "latest",
+    "chess.js": "0.10.3",
+    "stockfish": "10.0.2"
+  }
+}
