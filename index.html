@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'self' data: blob: filesystem: 'unsafe-inline' 'unsafe-eval'; worker-src * blob: 'self'; script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; connect-src * blob:;">
 <title>দাবা গেম রিভিউ</title>
 <script src="chess.js"></script>
 <style>
@@ -214,38 +215,41 @@ const ENGINE_URLS = ['stockfish.js'];
 class Engine {
   constructor(){ this.w = null; this.chain = Promise.resolve(); this.listeners = []; }
   async init(){
-    let lastErr = null;
+    const errs = [];
     /* try a direct same-origin Worker first (works inside the packaged app / WebView) */
     for (const u of ENGINE_URLS) {
       try {
         this.w = new Worker(u);
         this.w.onmessage = e => this.onMsg(e.data);
-        await this.cmdWait('uci', 'uciok');
+        await this.cmdWait('uci', 'uciok', 8000);
         this.send('setoption name MultiPV value 2');
-        await this.cmdWait('isready', 'readyok');
+        await this.cmdWait('isready', 'readyok', 8000);
         return;
-      } catch (e) { lastErr = e; try { this.w && this.w.terminate(); } catch (e2) {} this.w = null; }
+      } catch (e) { errs.push('direct(' + u + '): ' + e.message); try { this.w && this.w.terminate(); } catch (e2) {} this.w = null; }
     }
     /* fall back to fetch + Blob Worker (needed when running from a plain downloaded HTML file) */
-    let text = null;
+    let text = null, fetchErr = null;
     for (const u of ENGINE_URLS) {
-      try { const r = await fetch(u); if (r.ok) { text = await r.text(); break; } } catch (e) { lastErr = e; }
+      try { const r = await fetch(u); if (r.ok) { text = await r.text(); break; } else { fetchErr = 'HTTP ' + r.status + ' for ' + u; } } catch (e) { fetchErr = 'fetch(' + u + '): ' + e.message; }
     }
-    if (!text) throw lastErr || new Error('engine download failed');
-    const blob = new Blob([text], {type:'application/javascript'});
-    this.w = new Worker(URL.createObjectURL(blob));
-    this.w.onmessage = e => this.onMsg(e.data);
-    await this.cmdWait('uci', 'uciok');
-    this.send('setoption name MultiPV value 2');
-    await this.cmdWait('isready', 'readyok');
+    if (!text) { errs.push(fetchErr || 'engine file fetch failed'); throw new Error(errs.join(' | ')); }
+    try {
+      const blob = new Blob([text], {type:'application/javascript'});
+      this.w = new Worker(URL.createObjectURL(blob));
+      this.w.onmessage = e => this.onMsg(e.data);
+      await this.cmdWait('uci', 'uciok', 8000);
+      this.send('setoption name MultiPV value 2');
+      await this.cmdWait('isready', 'readyok', 8000);
+    } catch (e) { errs.push('blob-worker: ' + e.message); throw new Error(errs.join(' | ')); }
   }
   send(c){ this.w.postMessage(c); }
   onMsg(d){ const s = (typeof d === 'string') ? d : String(d); for (const l of this.listeners.slice()) l(s); }
-  cmdWait(cmd, token){
+  cmdWait(cmd, token, timeoutMs){
     return new Promise((res, rej) => {
-      const t = setTimeout(() => { this.listeners = this.listeners.filter(x => x !== f); rej(new Error('timeout')); }, 20000);
-      const f = s => { if (s.indexOf(token) === 0) { clearTimeout(t); this.listeners = this.listeners.filter(x => x !== f); res(); } };
+      const t = setTimeout(() => { this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; rej(new Error('timeout waiting for ' + token)); }, timeoutMs || 20000);
+      const f = s => { if (s.indexOf(token) === 0) { clearTimeout(t); this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; res(); } };
       this.listeners.push(f);
+      this.w.onerror = ev => { clearTimeout(t); this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; rej(new Error('worker error: ' + (ev && (ev.message || ev.type)) )); };
       this.send(cmd);
     });
   }
@@ -702,7 +706,7 @@ async function runAnalysis(){
     try { await ensureEngine(); }
     catch (e) {
       if (my !== runId) return;
-      $('pmsg').textContent = 'ইঞ্জিন লোড করা যায়নি, তাই বিশ্লেষণ হয়নি। বোর্ডে চাল দেখা যাবে। এই ফাইলটি ডাউনলোড করে সরাসরি ব্রাউজারে খুললে সাধারণত ইঞ্জিন চলে।';
+      $('pmsg').textContent = 'ইঞ্জিন লোড করা যায়নি, তাই বিশ্লেষণ হয়নি। বোর্ডে চাল দেখা যাবে। কারণ (ডিবাগ তথ্য): ' + e.message;
       return;
     }
   }
