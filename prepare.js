@@ -17,4 +17,4 @@ function find(dir) {
 const sf = find('node_modules/stockfish');
 if (!sf) throw new Error('stockfish.js not found in node_modules/stockfish');
 fs.copyFileSync(sf, 'www/stockfish.js');
-console.log('Prepared www/: index.html, chess.js, stockfish.js (from ' + sf +
+console.log('Prepared www/: index.html, chess.js, stockfish.js (from ' + sf + ')');
