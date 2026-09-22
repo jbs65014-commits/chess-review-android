@@ -214,11 +214,24 @@ const ENGINE_URLS = ['stockfish.js'];
 class Engine {
   constructor(){ this.w = null; this.chain = Promise.resolve(); this.listeners = []; }
   async init(){
+    let lastErr = null;
+    /* try a direct same-origin Worker first (works inside the packaged app / WebView) */
+    for (const u of ENGINE_URLS) {
+      try {
+        this.w = new Worker(u);
+        this.w.onmessage = e => this.onMsg(e.data);
+        await this.cmdWait('uci', 'uciok');
+        this.send('setoption name MultiPV value 2');
+        await this.cmdWait('isready', 'readyok');
+        return;
+      } catch (e) { lastErr = e; try { this.w && this.w.terminate(); } catch (e2) {} this.w = null; }
+    }
+    /* fall back to fetch + Blob Worker (needed when running from a plain downloaded HTML file) */
     let text = null;
     for (const u of ENGINE_URLS) {
-      try { const r = await fetch(u); if (r.ok) { text = await r.text(); break; } } catch (e) {}
+      try { const r = await fetch(u); if (r.ok) { text = await r.text(); break; } } catch (e) { lastErr = e; }
     }
-    if (!text) throw new Error('engine download failed');
+    if (!text) throw lastErr || new Error('engine download failed');
     const blob = new Blob([text], {type:'application/javascript'});
     this.w = new Worker(URL.createObjectURL(blob));
     this.w.onmessage = e => this.onMsg(e.data);
