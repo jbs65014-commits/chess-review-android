@@ -109,7 +109,7 @@ h2{font-size:15px;margin:0 0 8px}
 <body>
 <div class="app">
   <div class="top">
-    <h1>দাবা গেম রিভিউ <small style="font-size:12px;font-weight:600;color:#5b6b7a">সংস্করণ 15</small></h1>
+    <h1>দাবা গেম রিভিউ <small style="font-size:12px;font-weight:600;color:#5b6b7a">সংস্করণ 16</small></h1>
     <button class="btn ghost hidden" id="newGame">নতুন খেলা লোড করুন</button>
   </div>
 
@@ -211,7 +211,10 @@ let ply = 0, flipped = false, done = false;
 let runId = 0;
 
 /* ---------- engine ---------- */
-const ENGINE_URLS = ['stockfish.js'];
+const ENGINE_URLS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js',
+  'https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/stockfish.js'
+];
 class Engine {
   constructor(){ this.w = null; this.chain = Promise.resolve(); this.listeners = []; }
   async init(){
