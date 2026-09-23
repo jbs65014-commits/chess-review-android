@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src * 'self' data: blob: filesystem: 'unsafe-inline' 'unsafe-eval'; worker-src * blob: 'self'; script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; connect-src * blob:;">
+<title>দাবা গেম রিভিউ</title>
+<script src="chess.js"></script>
+<style>
+:root{
+  --ink:#16202a; --muted:#5b6b7a; --page:#e6ebf0; --panel:#ffffff; --line:#d3dbe3;
+  --sq-l:#dde6ee; --sq-d:#6f8fae; --accent:#274c77; --accent-ink:#ffffff;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:"Noto Sans Bengali","Hind Siliguri","Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.55;font-size:15px}
+button{font:inherit;color:inherit}
+.app{max-width:1120px;margin:0 auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:9px 16px;cursor:pointer;font-weight:600}
+.btn:hover{background:#1d3a5c}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:#f1f4f7}
+.btn:focus-visible,.mv:focus-visible,.ctl:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #7aa5d6;outline-offset:2px}
+textarea{width:100%;min-height:170px;border:1px solid var(--line);border-radius:8px;padding:10px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical;background:#fafbfc;color:var(--ink)}
+.row-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;font:inherit}
+.err{color:#b3261e;margin-top:8px;min-height:1.2em}
+.help{color:var(--muted);margin:0 0 10px}
+.hidden{display:none !important}
+
+.review{display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:900px){.review{grid-template-columns:1fr}}
+
+.player{display:flex;align-items:center;gap:8px;padding:6px 2px;min-height:34px}
+.player .chip{width:14px;height:14px;border-radius:3px;border:1px solid #2b3742;flex:none}
+.player .chip.w{background:#fff}.player .chip.b{background:#26313b}
+.player small{color:var(--muted)}
+.player .acc{margin-left:auto;font-weight:700;background:#eef2f6;border-radius:6px;padding:1px 9px}
+
+.boardrow{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;align-items:stretch}
+.boardwrap{position:relative;width:100%}
+.boardwrap::before{content:"";display:block;padding-top:100%}
+.evalbar{position:relative;background:#333d47;border-radius:5px;overflow:hidden;min-height:100px}
+.evalfill{position:absolute;left:0;right:0;bottom:0;height:50%;background:#f4f6f8;transition:height .35s ease}
+.evalbar.flip .evalfill{top:0;bottom:auto}
+.evaltxt{position:absolute;left:0;right:0;text-align:center;font-size:10px;font-weight:700;padding:3px 0;line-height:1.1}
+
+.board{position:absolute;inset:0;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));grid-template-rows:repeat(8,minmax(0,1fr));border-radius:6px;overflow:hidden;container-type:inline-size;user-select:none;border:1px solid #4d6784}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:visible}
+.sq.l{background:var(--sq-l)}.sq.d{background:var(--sq-d)}
+.sq.hl{box-shadow:inset 0 0 0 100px rgba(255,214,64,.5)}
+.rk,.fl{position:absolute;font-style:normal;font-weight:700;font-size:9px;font-size:2.3cqw;line-height:1;z-index:1}
+.rk{top:3px;left:3px}.fl{bottom:2px;right:3px}
+.sq.l .rk,.sq.l .fl{color:var(--sq-d)}
+.sq.d .rk,.sq.d .fl{color:var(--sq-l)}
+.pc{font-size:min(8vw,56px);font-size:10.6cqw;line-height:1;z-index:2;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols",serif}
+.pc.w{color:#fff;text-shadow:1px 0 0 #1b1b1b,-1px 0 0 #1b1b1b,0 1px 0 #1b1b1b,0 -1px 0 #1b1b1b,1px 1px 0 #1b1b1b,-1px -1px 0 #1b1b1b,1px -1px 0 #1b1b1b,-1px 1px 0 #1b1b1b}
+.pc.b{color:#1b1f24;text-shadow:0 0 1px rgba(255,255,255,.55)}
+.badge{position:absolute;top:1px;right:1px;width:4.8cqw;height:4.8cqw;min-width:16px;min-height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.6cqw;font-weight:800;z-index:4;box-shadow:0 1px 3px rgba(0,0,0,.35);line-height:1}
+.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 0}
+.ctl{background:#fff;border:1px solid var(--line);border-radius:8px;min-width:44px;height:40px;font-size:20px;cursor:pointer;line-height:1}
+.ctl:hover{background:#eef2f6}
+.ctl.text{font-size:14px;padding:0 12px}
+.toggle{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:14px;color:var(--muted);cursor:pointer}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+
+.comment{margin-top:12px;border-left:5px solid var(--line);min-height:96px}
+.c-head{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px}
+.comment p{margin:6px 0 0}
+.c-eval{margin-top:8px;color:var(--muted);font-size:13px}
+.ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:800;flex:none;line-height:1}
+.ic.big{width:28px;height:28px;font-size:13px}
+
+.progress{margin-bottom:12px}
+.progress .bar{height:6px;background:#dde4ea;border-radius:3px;overflow:hidden;margin-top:6px}
+.progress .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.progress .msg{font-size:13px;color:var(--muted)}
+
+.sum{margin-bottom:14px}
+.accs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.accbox{border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.accbox .who{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accbox .num{font-size:28px;font-weight:800;line-height:1.15}
+table.cnt{width:100%;border-collapse:collapse;font-size:14px}
+table.cnt td,table.cnt th{padding:5px 6px;border-top:1px solid #edf1f4;text-align:center}
+table.cnt th{font-weight:600;color:var(--muted);border-top:0;font-size:13px}
+table.cnt td:first-child,table.cnt th:first-child{text-align:left}
+table.cnt td:first-child{display:flex;align-items:center;gap:8px}
+table.cnt td.zero{color:#b5c0ca}
+
+.graphbox{margin-bottom:14px}
+.graph{position:relative;height:92px;border-radius:6px;overflow:hidden;cursor:pointer;background:#39434e}
+.graph svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.graph .dot{position:absolute;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);border:1.5px solid #fff;pointer-events:none}
+
+.moves{position:relative;max-height:300px;overflow:auto;padding:4px}
+.mrow{display:grid;grid-template-columns:34px 1fr 1fr;align-items:center}
+.mnum{color:var(--muted);font-size:13px;padding-left:4px}
+.mv{background:transparent;border:0;text-align:left;padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:34px}
+.mv:hover{background:#eef2f6}
+.mv.active{background:#dbe7f4;font-weight:700}
+.mv .ic{width:18px;height:18px;font-size:9px}
+h2{font-size:15px;margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>দাবা গেম রিভিউ <small style="font-size:12px;font-weight:600;color:#5b6b7a">সংস্করণ 22</small></h1>
+    <button class="btn ghost hidden" id="newGame">নতুন খেলা লোড করুন</button>
+  </div>
+
+  <section class="card" id="inputCard">
+    <p class="help">আপনার খেলার PGN নিচে পেস্ট করুন। Stockfish ইঞ্জিন প্রতিটি চাল বিশ্লেষণ করে সেরা চাল, ভুল ও নির্ভুলতা দেখাবে। chess.com বা Lichess থেকে PGN কপি করা যায়।</p>
+    <textarea id="pgn" placeholder="[Event &quot;...&quot;]&#10;[White &quot;...&quot;]&#10;[Black &quot;...&quot;]&#10;&#10;1. e4 e5 2. Nf3 Nc6 ..." spellcheck="false"></textarea>
+    <div class="row-actions">
+      <button class="btn" id="start">রিভিউ শুরু করুন</button>
+      <button class="btn ghost" id="sample">উদাহরণ খেলা</button>
+      <label>বিশ্লেষণ:
+        <select id="depth">
+          <option value="10,1500">দ্রুত</option>
+          <option value="12,3000" selected>স্বাভাবিক (সঠিক)</option>
+          <option value="14,6000">গভীর (ধীর)</option>
+          <option value="16,9000">সর্বোচ্চ (অনেক ধীর)</option>
+        </select>
+      </label>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+  </section>
+
+  <section class="review hidden" id="review">
+    <div class="left">
+      <div class="player" id="pTop"></div>
+      <div class="boardrow">
+        <div class="evalbar" id="evalbar"><div class="evalfill" id="evalfill"></div><span class="evaltxt" id="evaltxt"></span></div>
+        <div class="boardwrap"><div class="board" id="board" aria-label="দাবার বোর্ড"></div></div>
+      </div>
+      <div class="player" id="pBottom"></div>
+
+      <div class="controls">
+        <button class="ctl" id="bFirst" title="শুরুতে" aria-label="শুরুতে">&laquo;</button>
+        <button class="ctl" id="bPrev" title="আগের চাল" aria-label="আগের চাল">&lsaquo;</button>
+        <button class="ctl" id="bNext" title="পরের চাল" aria-label="পরের চাল">&rsaquo;</button>
+        <button class="ctl" id="bLast" title="শেষে" aria-label="শেষে">&raquo;</button>
+        <button class="ctl text" id="bFlip">বোর্ড ঘোরান</button>
+        <label class="toggle"><input type="checkbox" id="showBest" checked> সেরা চাল তীর</label>
+      </div>
+      <p class="hint">কিবোর্ডের ← → তীর কী দিয়েও চাল এগোনো-পেছানো যায়।</p>
+
+      <div class="card comment" id="comment"></div>
+    </div>
+
+    <div class="right">
+      <div class="card progress" id="progress">
+        <div class="msg" id="pmsg"></div>
+        <div class="bar"><i id="pbar"></i></div>
+      </div>
+      <div class="card sum hidden" id="summary"></div>
+      <div class="card graphbox">
+        <h2>মূল্যায়ন গ্রাফ</h2>
+        <div class="graph" id="graph"></div>
+      </div>
+      <div class="card">
+        <h2>চালের তালিকা</h2>
+        <div class="moves" id="moves"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const GLYPH = {p:'\u265F\uFE0E', n:'\u265E\uFE0E', b:'\u265D\uFE0E', r:'\u265C\uFE0E', q:'\u265B\uFE0E', k:'\u265A\uFE0E'};
+const VAL = {p:1, n:3, b:3, r:5, q:9, k:0};
+
+const CLS = {
+  pending:    {sym:'\u2026', color:'#9aa7b4', fg:'#fff', name:'যাচাই চলছে…'},
+  book:       {sym:'\uD83D\uDCD6', color:'#b58862', fg:'#fff', name:'বই চাল (Book)'},
+  brilliant:  {sym:'!!', color:'#1baca6', fg:'#fff',    name:'অসাধারণ (Brilliant)'},
+  great:      {sym:'!',  color:'#5c8bb0', fg:'#fff',    name:'দারুণ (Great)'},
+  best:       {sym:'\u2605', color:'#6aa84f', fg:'#fff', name:'সেরা (Best)'},
+  excellent:  {sym:'\u2713', color:'#8fbf5a', fg:'#1b2a0c', name:'চমৎকার (Excellent)'},
+  good:       {sym:'\u2713', color:'#b4c18a', fg:'#2b3418', name:'ভালো (Good)'},
+  inaccuracy: {sym:'?!', color:'#f0c15c', fg:'#3a2c00', name:'সামান্য ভুল (Inaccuracy)'},
+  mistake:    {sym:'?',  color:'#e58f2a', fg:'#fff',    name:'ভুল (Mistake)'},
+  miss:       {sym:'\u2715', color:'#ee6a5f', fg:'#fff', name:'মিস (Miss)'},
+  blunder:    {sym:'??', color:'#ca3431', fg:'#fff',    name:'মারাত্মক ভুল (Blunder)'}
+};
+const ORDER = ['book','brilliant','great','best','excellent','good','inaccuracy','mistake','miss','blunder'];
+
+const BAD = ['inaccuracy', 'mistake', 'miss', 'blunder'];
+/* while analysis is still running, negative labels are provisional (shallow search) */
+function shownCls(k){
+  const c = cls[k];
+  if (!c) return null;
+  return c;
+}
+
+/* ---------- state ---------- */
+let headers = {}, startFen = START;
+let moves = [], fens = [];
+let evals = [], cls = [], accs = [], losses = [], deep = [], bests = [], book = [], evd = [];
+let ply = 0, flipped = false, done = false;
+let runId = 0;
+
+/* ---------- engine ---------- */
+const ENGINE_URLS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js',
+  'https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/stockfish.js'
+];
+class Engine {
+  constructor(){ this.w = null; this.chain = Promise.resolve(); this.listeners = []; }
+  async init(){
+    const errs = [];
+    /* try a direct same-origin Worker first (works inside the packaged app / WebView) */
+    for (const u of ENGINE_URLS) {
+      try {
+        this.w = new Worker(u);
+        this.w.onmessage = e => this.onMsg(e.data);
+        await this.cmdWait('uci', 'uciok', 8000);
+        this.send('setoption name MultiPV value 2');
+        await this.cmdWait('isready', 'readyok', 8000);
+        return;
+      } catch (e) { errs.push('direct(' + u + '): ' + e.message); try { this.w && this.w.terminate(); } catch (e2) {} this.w = null; }
+    }
+    /* fall back to fetch + Blob Worker (needed when running from a plain downloaded HTML file) */
+    let text = null, fetchErr = null;
+    for (const u of ENGINE_URLS) {
+      try { const r = await fetch(u); if (r.ok) { text = await r.text(); break; } else { fetchErr = 'HTTP ' + r.status + ' for ' + u; } } catch (e) { fetchErr = 'fetch(' + u + '): ' + e.message; }
+    }
+    if (!text) { errs.push(fetchErr || 'engine file fetch failed'); throw new Error(errs.join(' | ')); }
+    try {
+      const blob = new Blob([text], {type:'application/javascript'});
+      this.w = new Worker(URL.createObjectURL(blob));
+      this.w.onmessage = e => this.onMsg(e.data);
+      await this.cmdWait('uci', 'uciok', 8000);
+      this.send('setoption name MultiPV value 2');
+      await this.cmdWait('isready', 'readyok', 8000);
+    } catch (e) { errs.push('blob-worker: ' + e.message); throw new Error(errs.join(' | ')); }
+  }
+  send(c){ this.w.postMessage(c); }
+  onMsg(d){ const s = (typeof d === 'string') ? d : String(d); for (const l of this.listeners.slice()) l(s); }
+  cmdWait(cmd, token, timeoutMs){
+    return new Promise((res, rej) => {
+      const t = setTimeout(() => { this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; rej(new Error('timeout waiting for ' + token)); }, timeoutMs || 20000);
+      const f = s => { if (s.indexOf(token) === 0) { clearTimeout(t); this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; res(); } };
+      this.listeners.push(f);
+      this.w.onerror = ev => { clearTimeout(t); this.listeners = this.listeners.filter(x => x !== f); this.w.onerror = null; rej(new Error('worker error: ' + (ev && (ev.message || ev.type)) )); };
+      this.send(cmd);
+    });
+  }
+  evaluate(fen, depth, ms){
+    const p = this.chain.then(() => new Promise(res => {
+      const lines = {};
+      const f = s => {
+        if (s.startsWith('info') && s.includes(' score ') && s.includes(' pv ')) {
+          const t = s.split(' ');
+          const si = t.indexOf('score'), pi = t.indexOf('pv'), mi = t.indexOf('multipv'), di = t.indexOf('depth');
+          const bound = t[si + 3];
+          if (bound === 'lowerbound' || bound === 'upperbound') return;
+          lines[mi >= 0 ? +t[mi + 1] : 1] = {depth: +t[di + 1], type: t[si + 1], val: +t[si + 2], mv: t[pi + 1]};
+        } else if (s.startsWith('bestmove')) {
+          this.listeners = this.listeners.filter(x => x !== f);
+          res({lines, best: s.split(' ')[1]});
+        }
+      };
+      this.listeners.push(f);
+      this.send('position fen ' + fen);
+      this.send('go depth ' + depth + ' movetime ' + ms);
+    }));
+    this.chain = p.catch(() => {});
+    return p;
+  }
+  stop(){ try { this.send('stop'); } catch (e) {} }
+}
+let engine = null, engineReady = false;
+async function ensureEngine(){
+  if (engineReady) return;
+  engine = new Engine();
+  await engine.init();
+  engineReady = true;
+}
+
+/* ---------- evaluation helpers ---------- */
+const wp = cp => 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * Math.max(-1000, Math.min(1000, cp)))) - 1);
+
+async function evalPos(fen, depth, ms){
+  const g = new Chess(fen);
+  const stm = g.turn();
+  if (g.game_over()) {
+    if (g.in_checkmate()) return {cp: stm === 'w' ? -10000 : 10000, mate: 0, best: null, cp2: null};
+    return {cp: 0, mate: null, best: null, cp2: null};
+  }
+  const r = await engine.evaluate(fen, depth, ms);
+  const l1 = r.lines[1], l2 = r.lines[2];
+  if (!l1) return {cp: 0, mate: null, best: null, cp2: null};
+  const conv = l => {
+    const v = l.type === 'mate' ? (l.val > 0 ? 1 : -1) * (10000 - Math.min(Math.abs(l.val), 99) * 10) : l.val;
+    return stm === 'w' ? v : -v;
+  };
+  return {
+    cp: conv(l1),
+    mate: l1.type === 'mate' ? (stm === 'w' ? l1.val : -l1.val) : null,
+    best: l1.mv || r.best,
+    best2: l2 ? l2.mv : null,
+    cp2: l2 ? conv(l2) : null
+  };
+}
+
+function matBalance(g){
+  let t = 0;
+  for (const row of g.board()) for (const p of row) if (p) t += (p.color === 'w' ? 1 : -1) * VAL[p.type];
+  return t;
+}
+/* capture-only search: material balance from the side-to-move's point of view */
+function qsearch(g, alpha, beta, depth){
+  let stand = matBalance(g) * (g.turn() === 'w' ? 1 : -1);
+  if (depth === 0 || stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  const caps = g.moves({verbose: true}).filter(x => x.captured);
+  caps.sort((x, y) => (VAL[y.captured] * 10 - VAL[y.piece]) - (VAL[x.captured] * 10 - VAL[x.piece]));
+  for (const x of caps) {
+    g.move({from: x.from, to: x.to, promotion: x.promotion});
+    const sc = -qsearch(g, -beta, -alpha, depth - 1);
+    g.undo();
+    if (sc >= beta) return sc;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+/* a sacrifice = after the move and all forced captures, the mover is at least 2 points of material worse off than before */
+function isSacrifice(fenBefore, m){
+  if (m.piece === 'p' || m.piece === 'k' || m.promotion) return false;
+  const g = new Chess(fenBefore);
+  const sign = g.turn() === 'w' ? 1 : -1;
+  const before = matBalance(g) * sign;
+  if (!g.move({from: m.from, to: m.to, promotion: m.promotion})) return false;
+  const after = -qsearch(g, -1000, 1000, 8);
+  return after <= before - 2;
+}
+
+const BOOK_LINES = `e4 e5 Nf3 Nc6 Nc3 Bb4
+e4 e5 Nf3 Nc6 Nc3 Bb4 Bb5 Nf6 O-O O-O d3 Bxc3 bxc3 d6
+e4 e5 Nf3 Nc6 Nc3 Bb4 Bb5 Bxc3 bxc3 Nge7 O-O O-O
+e4 e5 Nf3 Nc6 Nc3 Bb4 Nd5 Nf6 Nxb4 Nxb4
+e4 e5 Nf3 Nc6 Nc3 Bb4 Nd5 Bc5 Nxe5 Nxe5 d4 Bxd4 Qxd4
+e4 e5 Nf3 Nc6 Nc3 Bc5 Nxe5 Nxe5 d4 Bd6 dxe5 Bxe5
+e4 e5 Nf3 Nc6 Nc3 g6 d4 exd4 Nd5 Bg7
+e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Nd4 Ba4 Bc5 Nxe5 O-O Nd3 Bb6
+e4 e5 Nf3 Nc6 Nc3 Nf6 Bc4 Nxe4 Nxe4 d5 Bd3 dxe4 Bxe4
+e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 Nd5 Nxd5 exd5 e4 dxc6 exf3 Qxf3 dxc6 Bc4 Bd6
+e4 e5 Nf3 Nc6 Nc3 Nf6 a3 d5 exd5 Nxd5 Bb5 Nxc3 dxc3 Qxd1+ Kxd1
+e4 e5 Nf3 Nc6 c3 Nf6 d4 Nxe4 d5 Ne7 Nxe5 Ng6
+e4 e5 Nf3 Nc6 c3 d5 Qa4 f6 exd5 Qxd5
+e4 e5 Nf3 Nc6 c3 Nf6 d4 exd4 e5 Nd5 cxd4 d6
+e4 e5 Nf3 Nc6 Nc3 Bb4 d3 Nf6 Bd2 d6 Be2 O-O
+e4 e5 d4 exd4 c3 dxc3 Bc4 cxb2 Bxb2 Bb4+ Nc3 Nf6
+e4 e5 d4 exd4 Qxd4 Nc6 Qe3 Nf6 Nc3 Bb4 Bd2 O-O O-O-O Re8
+e4 e5 d4 exd4 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Nxd5 Nxf7 Kxf7 Qf3+ Ke6 Nc3 Nb4
+e4 e5 Nf3 f5 Nxe5 Qf6 d4 d6 Nc4 fxe4 Nc3 Qg6
+e4 e5 Nf3 d5 exd5 e4 Qe2 Qe7 Nd4 Nd7
+e4 e5 Nf3 Nc6 Bc4 Bc5 Bxf7+ Kxf7 Nxe5+ Nxe5 d4 Bd6 dxe5 Bxe5
+e4 e5 Bc4 Nf6 d4 exd4 Nf3 Nc6 O-O Nxe4
+e4 e5 Bc4 Bc5 Nf3 d6 c3 Nf6 d4 exd4 cxd4 Bb4+
+e4 e5 Nc3 Nf6 Bc4 Nxe4 Qh5 Nd6 Bb3 Nc6 Nb5 g6 Qf3 f5 Qd5 Qe7 Nxc7+ Kd8 Nxa8 b6
+e4 e5 Nc3 Bc5 Nf3 d6 Na4 Bb6 Nxb6 axb6 d4 exd4 Nxd4 Nf6
+e4 e5 Nf3 Nc6 Nc3 Nf6 d4 exd4 Nxd4 Bb4 Nxc6 bxc6 Bd3 d5 exd5 cxd5 O-O O-O Bg5 c6
+e4 c5 Nf3 Nc6 Nc3 e5 Bc4 Be7 d3 d6
+e4 c5 Nf3 Nc6 Nc3 g6 d4 cxd4 Nxd4 Bg7 Be3 Nf6 Bc4 O-O Bb3 d6 f3
+e4 c5 Nf3 d6 Nc3 Nf6 d4 cxd4 Nxd4 a6 Bg5 e6
+e4 c5 Nc3 e6 Nge2 Nc6 g3 Nf6 Bg2 d5
+e4 e6 Nf3 d5 Nc3 Nf6 e5 Nfd7 d4 c5 Bb5 Nc6
+e4 d5 exd5 Qxd5 Nc3 Qd6 d4 Nf6 Nf3 a6 Bf4 Qb4 Bd2 Qd6
+e4 Nf6 Nc3 d5 exd5 Nxd5 Bc4 Nb6 Bb3 Nc6
+e4 Nf6 Nc3 e5 Nf3 Nc6 Bb5 Bd6
+e4 b6 d4 Bb7 Nc3 e6 Nf3 Bb4 Bd3 Nf6
+e4 e5 Nf3 Nc6 Nc3 Bb4 Nd5 a5 c3 Bc5
+e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Nb8 d4 Nbd7
+e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O b5 Bb3 Bc5 c3 d6 d4 Bb6
+e4 e5 Nf3 Nc6 Bb5 a6 Bxc6 dxc6 O-O f6 d4 exd4 Nxd4 c5 Nb3 Qxd1 Rxd1 Bg4 f3 Bd7
+e4 e5 Nf3 Nc6 Bb5 Nf6 O-O Nxe4 d4 Nd6 Bxc6 dxc6 dxe5 Nf5 Qxd8+ Kxd8
+e4 e5 Nf3 Nc6 Bb5 Nf6 d3 Bc5 c3 O-O O-O d6 Bg5 h6 Bh4 Bb6
+e4 e5 Nf3 Nc6 Bb5 f5 Nc3 fxe4 Nxe4 d5
+e4 e5 Nf3 Nc6 Bb5 Nge7 Nc3 g6 d4 exd4 Nxd4 Bg7
+e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Bd2 Bxd2+ Nbxd2 d5 exd5 Nxd5
+e4 e5 Nf3 Nc6 Bc4 Bc5 b4 Bxb4 c3 Ba5 d4 exd4 O-O
+e4 e5 Nf3 Nc6 Bc4 Bc5 d3 Nf6 c3 d6 O-O O-O Re1 a6 Bb3
+e4 e5 Nf3 Nc6 Bc4 Bc5 Nc3 Nf6 d3 d6 Bg5 h6 Bh4 g5 Bg3 Bg4
+e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Na5 Bb5+ c6 dxc6 bxc6 Be2 h6 Nf3 e4 Ne5 Bd6
+e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 Bc5 Nxf7 Bxf2+ Kxf2 Nxe4+ Kg1 Qh4 Nxh8 d5
+e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 c3 d6
+e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Nf6 Nxc6 bxc6 e5 Qe7 Qe2 Nd5 c4 Ba6
+e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3 Qf6 c3 Nge7 Bc4 O-O
+e4 e5 Nf3 Nc6 d4 exd4 Bc4 Nf6 O-O Nxe4 Re1 d5 Bxd5 Qxd5 Nc3 Qa5
+e4 e5 Nf3 Nc6 Nc3 Nf6 Bb5 Bb4 O-O O-O d3 Bxc3 bxc3 d6 Bg5 Ne7
+e4 e5 Nf3 Nc6 Nc3 Nf6 d4 exd4 Nxd4 Bb4 Nxc6 bxc6 Bd3 d5 exd5 cxd5
+e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4 d5 Bd3 Nc6 O-O Be7 c4 Nb4 Be2 O-O Nc3 Bf5
+e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 d3 Bc5
+e4 e5 Nf3 d6 d4 Nf6 Nc3 Nbd7 Bc4 Be7 O-O O-O Qe2 c6 a4 exd4 Nxd4 Re8
+e4 e5 Nf3 d6 d4 exd4 Nxd4 Nf6 Nc3 Be7 Be2 O-O O-O Re8
+e4 e5 Nc3 Nf6 f4 d5 fxe5 Nxe4 Nf3 Be7
+e4 e5 Nc3 Nc6 Bc4 Nf6 d3 Bb4 Nf3 d5
+e4 e5 f4 exf4 Nf3 g5 h4 g4 Ne5 Nf6 Bc4 d5 exd5 Bd6
+e4 e5 f4 exf4 Bc4 Nf6 Nc3 c6 Nf3 d5 exd5 cxd5 Bb5+ Nc6
+e4 e5 Bc4 Nf6 d3 c6 Nf3 d5 Bb3 Bd6 Nc3 O-O
+e4 e5 Qh5 Nc6 Bc4 g6 Qf3 Nf6 Ne2 Bg7
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5 Nb3 Be6 f3 Be7 Qd2 O-O O-O-O Nbd7 g4 b5
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4 Be7 Qf3 Qc7 O-O-O Nbd7 g4 b5
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2 e5 Nb3 Be7 O-O O-O Be3 Be6 f4 exf4
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bc4 e6 Bb3 Nbd7 f4 Be7 O-O Qc7
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 h3 e5 Nde2 h5 Bg5 Be7 g3 Nc6
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 f4 e5 Nf3 Nbd7 a4 Qc7 Bd3 b6
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 Nc6 Qd2 O-O O-O-O d5 exd5 Nxd5 Nxc6 bxc6
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be2 Bg7 Be3 O-O O-O Nc6 Nb3 Be6 f4 Qc8
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 Nc6 Bg5 e6 Qd2 a6 O-O-O Bd7 f4 Be7 Nf3 b5
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6 Be3 a6 f3 b5 Qd2 Nbd7 g4 h6 O-O-O Bb7
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 e6 Be2 Be7 O-O O-O f4 Nc6 Be3 a6
+e4 c5 Nf3 d6 Bb5+ Bd7 Bxd7+ Qxd7 c4 Nc6 Nc3 Nf6 O-O g6 d4 cxd4 Nxd4 Bg7
+e4 c5 Nf3 e6 d4 cxd4 Nxd4 a6 Bd3 Nf6 O-O Qc7 Qe2 d6 c4 g6 Nc3 Bg7 Be3 O-O
+e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7 Be3 a6 Qd2 Nf6 O-O-O Bb4 f3 Ne5
+e4 c5 Nf3 e6 d3 Nc6 g3 g6 Bg2 Bg7 O-O Nge7 Re1 O-O c3 d5
+e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 d6 Bg5 e6 Qd2 Be7 O-O-O O-O f4 Nxd4
+e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6 Nc3 Bg7 Be3 Nf6 Bc4 O-O Bb3 d6 f3 Bd7
+e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 e5 Nb5 d6 N1c3 a6 Na3 b5 Nd5 Nge7
+e4 c5 Nf3 Nc6 Bb5 g6 O-O Bg7 Re1 Nf6 c3 O-O d4 cxd4 cxd4 d5 e5 Ne4
+e4 c5 Nf3 Nc6 Bb5 d6 O-O Bd7 Re1 Nf6 c3 a6 Bf1 e5 d4 cxd4 cxd4 exd4
+e4 c5 c3 Nf6 e5 Nd5 d4 cxd4 Nf3 Nc6 cxd4 d6 Bc4 Nb6 Bb5 dxe5 Nxe5 Bd7
+e4 c5 c3 d5 exd5 Qxd5 d4 Nf6 Nf3 e6 Be2 Nc6 O-O cxd4 cxd4 Be7
+e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6 Be3 e6 Qd2 Nge7 Nge2 O-O O-O Nd4
+e4 c5 Nc3 d6 f4 Nc6 Nf3 g6 Bc4 Bg7 O-O e6 d3 Nge7
+e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3 d6 Bc4 e6 O-O Nf6 Qe2 Be7
+e4 e6 d4 d5 Nc3 Nf6 Bg5 Be7 e5 Nfd7 Bxe7 Qxe7 f4 O-O Nf3 c5 dxc5 Nc6
+e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+ bxc3 Ne7 Qg4 Qc7 Qxg7 Rg8 Qxh7 cxd4 Ne2 Nbc6
+e4 e6 d4 d5 Nd2 Nf6 e5 Nfd7 Bd3 c5 c3 Nc6 Ne2 cxd4 cxd4 f6 exf6 Nxf6 Nf3 Bd6
+e4 e6 d4 d5 Nd2 c5 exd5 exd5 Ngf3 Nc6 Bb5 Bd6 dxc5 Bxc5 O-O Nge7
+e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6 a3 c4 Nbd2 Na5 Be2 Bd7 O-O Ne7
+e4 e6 d4 d5 exd5 exd5 Nf3 Bd6 Bd3 Nf6 O-O O-O Bg5 Bg4 Nbd2 Nbd7 c3 c6
+e4 e6 d3 d5 Nd2 Nf6 Ngf3 c5 g3 Nc6 Bg2 Be7 O-O O-O Re1 b5 e5 Nd7
+e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3 e6 Bf4 Ngf6 O-O-O Be7
+e4 c6 d4 d5 Nc3 dxe4 Nxe4 Nd7 Ng5 Ngf6 Bd3 e6 N1f3 Bd6 Qe2 h6 Nxf7 Kxf7 Ng5+ Kg8
+e4 c6 d4 d5 Nd2 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3 e6 Bf4 Ngf6
+e4 c6 d4 d5 e5 Bf5 Nf3 e6 Be2 c5 Be3 cxd4 Nxd4 Nc6 Nd2 Nge7 Nb3 Bg6
+e4 c6 d4 d5 exd5 cxd5 c4 Nf6 Nc3 e6 Nf3 Be7 cxd5 Nxd5 Bd3 Nc6 O-O O-O
+e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6 c3 Nf6 Bf4 Bg4 Qb3 Qd7 Nd2 e6 Ngf3 Bd6
+e4 c6 Nc3 d5 Nf3 Bg4 h3 Bxf3 Qxf3 e6 d4 Nf6 Bd3 Nbd7 O-O Bd6
+e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5 Bd2 e6 Nd5 Qd8
+e4 d5 exd5 Nf6 d4 Nxd5 Nf3 g6 Be2 Bg7 O-O O-O c4 Nb6 Nc3 Nc6
+e4 d6 d4 Nf6 Nc3 g6 f4 Bg7 Nf3 O-O Bd3 Na6 O-O c5 d5
+e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O O-O Bg4 Be3 Nc6 Qd2 e5 d5 Nb8 h3 Bxf3
+e4 g6 d4 Bg7 Nc3 d6 Be3 a6 Qd2 b5 f3 Nd7 Bd3 Ngf6 Nge2 c5
+e4 Nf6 e5 Nd5 d4 d6 Nf3 Bg4 Be2 e6 O-O Be7 c4 Nb6 Nc3 O-O Be3 d5
+e4 Nc6 d4 d5 Nc3 dxe4 d5 Ne5 Qd4 Ng6
+d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 h6 Bh4 b6 cxd5 Nxd5 Bxe7 Qxe7 Nxd5 exd5 Rc1 Be6 Qa4 c5 Qa3 Rc8
+d4 d5 c4 e6 Nc3 Nf6 Nf3 Be7 Bf4 O-O e3 c5 dxc5 Bxc5 a3 Nc6 Qc2 Qa5
+d4 d5 c4 e6 Nc3 c6 Nf3 Nf6 e3 Nbd7 Bd3 dxc4 Bxc4 b5 Bd3 Bb7 O-O a6 e4 c5
+d4 d5 c4 e6 Nf3 Nf6 g3 Be7 Bg2 O-O O-O dxc4 Qc2 a6 a4 Bd7 Qxc4 Bc6 Bg5 Bd5
+d4 d5 c4 c6 Nf3 Nf6 Nc3 dxc4 a4 Bf5 e3 e6 Bxc4 Bb4 O-O Nbd7 Qe2 Bg6
+d4 d5 c4 c6 Nf3 Nf6 Nc3 e6 e3 Nbd7 Bd3 dxc4 Bxc4 b5 Bd3 a6 e4 c5 e5 cxd4 Nxb5 axb5 exf6 gxf6
+d4 d5 c4 c6 Nc3 Nf6 e3 e6 Nf3 Nbd7 Qc2 Bd6 g4 Bxg3 hxg3 Nxg4
+d4 d5 c4 dxc4 Nf3 Nf6 e3 e6 Bxc4 c5 O-O a6 Bb3 cxd4 exd4 Nc6 Nc3 Be7
+d4 d5 c4 dxc4 e3 Nf6 Bxc4 e6 Nf3 c5 O-O a6 Qe2 b5 Bb3 Bb7 Rd1 Nbd7
+d4 d5 Nf3 Nf6 c4 e6 Nc3 Be7 Bg5 h6 Bh4 O-O e3 Ne4 Bxe7 Qxe7 Rc1 c6 Bd3 Nxc3 Rxc3 dxc4 Bxc4 Nd7
+d4 d5 Bf4 Nf6 e3 e6 Nf3 Bd6 Bg3 O-O Nbd2 c5 c3 Nc6 Bd3 b6
+d4 d5 Nf3 Nf6 Bf4 e6 e3 c5 c3 Nc6 Nbd2 Bd6 Bg3 O-O Bd3 b6
+d4 d5 Nf3 Nf6 Bf4 c5 e3 Nc6 c3 Qb6 Qb3 c4 Qc2 Bf5 Qc1 e6 Nbd2 Bd6
+d4 d5 Nf3 Nf6 e3 e6 Bd3 c5 b3 Nc6 O-O Bd6 Bb2 O-O Nbd2 b6
+d4 d5 e3 Nf6 Bd3 c5 c3 Nc6 Nd2 e6 Ngf3 Bd6 O-O O-O
+d4 d5 Bg5 Nf6 Bxf6 exf6 e3 Be6 Nf3 Nd7 Bd3 c6
+d4 d5 Nc3 Nf6 Bg5 Nbd7 Nf3 e6 e4 dxe4 Nxe4 Be7
+d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6 a3 Bxc3 bxc3 dxc4 Bxc4 Qc7
+d4 Nf6 c4 e6 Nc3 Bb4 Qc2 O-O a3 Bxc3+ Qxc3 b6 Bg5 Bb7 e3 d6 f3 Nbd7
+d4 Nf6 c4 e6 Nf3 b6 g3 Ba6 b3 Bb4+ Bd2 Be7 Bg2 c6 Bc3 d5 Ne5 Nfd7
+d4 Nf6 c4 e6 Nf3 d5 Nc3 Be7 Bg5 h6 Bh4 O-O e3 Ne4 Bxe7 Qxe7 Rc1 c6
+d4 Nf6 c4 e6 g3 d5 Bg2 Be7 Nf3 O-O O-O dxc4 Qc2 a6 Qxc4 b5 Qc2 Bb7 Bd2 Be4 Qc1 Bb7
+d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7 Ne1 Nd7 Be3 f5
+d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 f3 O-O Be3 e5 d5 Nh5 Qd2 Qh4+ g3 Nxg3 Qf2 Nxf1
+d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5 Be3 Qa5 Qd2 O-O Rc1 Nc6
+d4 Nf6 c4 g6 Nc3 d5 Nf3 Bg7 Qb3 dxc4 Qxc4 O-O e4 Bg4 Be3 Nfd7 Qb3 Nb6
+d4 Nf6 c4 c5 d5 e6 Nc3 exd5 cxd5 d6 e4 g6 Nf3 Bg7 Be2 O-O O-O Re8
+d4 Nf6 Nf3 g6 Bf4 Bg7 e3 O-O Be2 d6 h3 Nbd7 O-O b6 c3 Bb7
+d4 Nf6 Bg5 Ne4 Bf4 c5 f3 Qa5+ c3 Nf6 dxc5 e6
+d4 Nf6 Bf4 e6 e3 Be7 Nf3 O-O h3 b6 Bd3 Bb7 Nbd2 c5 c3 Nc6
+d4 Nf6 Nf3 e6 e3 c5 c3 b6 Nbd2 Bb7 Bd3 Be7 O-O O-O
+d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7 O-O O-O c4 d6 Nc3 Qe8
+d4 f5 c4 Nf6 g3 e6 Bg2 Be7 Nc3 O-O Nf3 d6 O-O Qe8
+d4 d6 Nf3 Nf6 c4 Nbd7 Nc3 e5 e4 Be7 Be2 O-O O-O c6
+d4 e6 c4 Nf6 Nc3 Bb4
+d4 g6 c4 Bg7 Nc3 d6 e4 Nf6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7
+c4 e5 Nc3 Nf6 Nf3 Nc6 g3 d5 cxd5 Nxd5 Bg2 Nb6 O-O Be7 d3 O-O
+c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6 Nf3 Nc6 O-O Be7 a3 O-O b4 f6
+c4 c5 Nf3 Nf6 Nc3 e6 g3 b6 Bg2 Bb7 O-O Be7 d4 cxd4 Qxd4 d6
+c4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 Nf3 e6 O-O Nge7 d3 O-O
+c4 e6 Nc3 d5 d4 Nf6 cxd5 exd5 Bg5 Be7 e3 O-O Bd3 Nbd7 Nge2 Re8 O-O c6
+c4 Nf6 Nc3 e6 e4 d5 e5 d4 exf6 dxc3 bxc3 Qxf6 Nf3 Nc6
+c4 Nf6 Nc3 g6 e4 d6 d4 Bg7 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7
+c4 c6 Nf3 d5 e3 Nf6 Nc3 e6 d4 Nbd7 Bd3 dxc4 Bxc4 b5 Bd3 Bb7
+Nf3 d5 g3 Nf6 Bg2 c6 O-O Bg4 d3 Nbd7 Nbd2 e5 e4 Bc5
+Nf3 d5 c4 d4 b4 c5 e3 Nc6 exd4 cxd4 Bb2 e5
+Nf3 d5 d4 Nf6 c4 e6 Nc3 Be7 Bg5 h6 Bh4 O-O e3 Ne4 Bxe7 Qxe7 Rc1 c6 Bd3 Nxc3 Rxc3 dxc4 Bxc4 Nd7
+Nf3 Nf6 c4 g6 Nc3 Bg7 e4 d6 d4 O-O Be2 e5 O-O Nc6 d5 Ne7
+Nf3 Nf6 g3 g6 Bg2 Bg7 O-O O-O d3 d6 c4 e5 Nc3 Nc6 Bg5 h6 Bxf6 Bxf6
+Nf3 Nf6 c4 e6 g3 d5 Bg2 Be7 O-O O-O d4 dxc4 Qc2 a6 Qxc4 b5 Qc2 Bb7 Bd2 Nc6
+Nf3 c5 c4 Nc6 Nc3 Nf6 d4 cxd4 Nxd4 e6 g3 Qb6 Nb3 Ne5 e4 Bb4
+Nf3 c5 e4 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7
+b3 e5 Bb2 Nc6 e3 d5 Bb5 Bd6 f4 Qh4+ g3 Qe7 Nf3 f6
+f4 d5 Nf3 Nf6 e3 g6 Be2 Bg7 O-O O-O d3 c5 Qe1 Nc6
+g3 d5 Bg2 e5 d3 Nf6 Nf3 Nc6 O-O Be7
+e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Nxe4 d4 b5 Bb3 d5 dxe5 Be6
+e4 e5 Nf3 Nc6 Bb5 a6 Ba4 d6 c3 Bd7 d4 Nge7
+e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 Ng4 Bg5 h6 Bh4 g5 Bg3 Bg7
+e4 a6
+e4 b6
+e4 g5
+e4 Nf6
+e4 Nc6
+e4 c5
+e4 e6
+e4 c6
+e4 d5
+e4 d6
+e4 g6
+e4 e5
+d4 d5
+d4 Nf6
+d4 e6
+d4 f5
+d4 d6
+d4 c5
+d4 g6
+c4 e5
+c4 c5
+c4 Nf6
+c4 e6
+c4 c6
+Nf3 d5
+Nf3 Nf6
+Nf3 c5
+Nf3 e6
+Nf3 g6
+Nf3 d6
+Nf3 f5
+Nc3 d5
+Nc3 Nf6
+b3 d5
+g3 Nf6
+f4 Nf6
+b4 e5
+e4 e5 Nf3
+e4 e5 Nf3 Nc6
+e4 e5 Nf3 Nf6
+e4 e5 Nf3 d6
+e4 e5 Bc4
+e4 e5 Nc3
+e4 e5 f4
+e4 e5 d4 exd4
+e4 e5 Nf3 Nc6 d4 exd4
+e4 c5 Nf3
+e4 c5 Nf3 d6
+e4 c5 Nf3 e6
+e4 c5 Nf3 Nc6
+e4 c5 c3
+e4 c5 Nc3
+e4 e6 d4
+e4 e6 d4 d5
+e4 c6 d4
+e4 c6 d4 d5
+d4 d5 c4
+d4 d5 c4 e6
+d4 d5 c4 c6
+d4 d5 c4 dxc4
+d4 d5 Nf3
+d4 Nf6 Nf3
+d4 Nf6 c4 e6
+d4 Nf6 c4 g6
+d4 Nf6 c4`.split('\n');
+let BOOK_SET = null;
+const bookKey = f => f.split(' ').slice(0, 4).join(' ');
+function buildBook(){
+  if (BOOK_SET) return;
+  BOOK_SET = new Set();
+  for (const line of BOOK_LINES) {
+    const g = new Chess();
+    for (const t of line.trim().split(/\s+/)) {
+      if (!g.move(t, {sloppy: true})) break;
+      BOOK_SET.add(bookKey(g.fen()));
+    }
+  }
+}
+function computeBook(){
+  book = [];
+  if (startFen !== START) return;
+  try { buildBook(); } catch (e) { return; }
+  let ok = true;
+  for (let k = 1; k < fens.length; k++) {
+    ok = ok && BOOK_SET.has(bookKey(fens[k]));
+    book[k] = ok;
+  }
+}
+
+/*
+ * Classification is driven by a SINGLE metric: win-probability loss (0-100), converted from the
+ * centipawn evaluation via the same logistic curve used for the eval bar and the accuracy score,
+ * always taken from the point of view of the side that just moved (m.color). This keeps the
+ * displayed label, the "how much did this cost you" number, and the accuracy average all
+ * consistent with each other, instead of mixing a pawn-based threshold with a separate win%
+ * number (the previous source of most mismatches).
+ */
+function playerRating(color){
+  const raw = color === 'w' ? headers.WhiteElo : headers.BlackElo;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.max(400, Math.min(3000, n)) : 1000;
+}
+
+/*
+ * Chess.com Classification V2 publicly describes the thresholds in EXPECTED POINTS,
+ * not raw centipawn loss. Chess.com does not publish the exact Expected Points formula,
+ * so this is a rating-aware approximation of that model.
+ *
+ * IMPORTANT: cpA is always the evaluation of the position AFTER the move actually played.
+ * If the played move is MultiPV #2, cp2 is used only as the engine's root score for that
+ * alternative; it is never confused with the actual resulting position for other moves.
+ */
+function expectedPoints(cp, rating){
+  const r = Math.max(400, Math.min(3000, Number(rating) || 1000));
+  // Approximate rating sensitivity while keeping 0.00 / 0.50 / 1.00 anchored correctly.
+  const factor = 0.90 + 0.20 * ((r - 400) / 2600);
+  const x = Math.max(-1000, Math.min(1000, cp)) * factor;
+  return 1 / (1 + Math.exp(-0.00368208 * x));
+}
+
+function accuracyFromEpLoss(epLoss){
+  // CAPS2's exact formula is not public. This curve keeps perfect moves at 100 and
+  // penalizes larger expected-point losses substantially more than the old formula.
+  const x = Math.max(0, Math.min(1, epLoss));
+  return 100 * Math.pow(1 - x, 1.70);
+}
+
+function classify(k){
+  const m = moves[k - 1], b = evals[k - 1], a = evals[k];
+  if (!b || !a) return;
+
+  const s = m.color === 'w' ? 1 : -1;
+  const rating = playerRating(m.color);
+  const uci = m.from + m.to + (m.promotion || '');
+  const isBest = b.best === uci;
+
+  const useAlt = !isBest && b.best2 === uci && b.cp2 != null;
+  const cpB = s * b.cp;
+  // For the played move, use the resulting position unless it is explicitly the engine's
+  // MultiPV #2 line, in which case cp2 represents that root alternative.
+  const cpA = s * (useAlt ? b.cp2 : a.cp);
+
+  const epB = expectedPoints(cpB, rating);
+  const epA = expectedPoints(cpA, rating);
+  let epLoss = isBest ? 0 : Math.max(0, epB - epA);
+
+  // A position that is already overwhelmingly winning should not make tiny practical
+  // inaccuracies look catastrophic.
+  if (epA >= 0.95) epLoss = Math.min(epLoss, 0.049);
+
+  let c;
+  if (isBest) c = 'best';
+  else if (epLoss <= 0.02) c = 'excellent';
+  else if (epLoss <= 0.05) c = 'good';
+  else if (epLoss <= 0.10) c = 'inaccuracy';
+  else if (epLoss <= 0.20) c = 'mistake';
+  else c = 'blunder';
+
+  /* A newly forced mate for the opponent is always a blunder. */
+  const nowLosingForced = a.mate != null && s * a.mate < 0;
+  const alreadyLosingForced = b.mate != null && s * b.mate < 0;
+  if (!isBest && nowLosingForced && !alreadyLosingForced) c = 'blunder';
+
+  /*
+   * Miss: the opponent previously made a significant error and the player failed to
+   * capitalize on the resulting winning opportunity. This remains a special label,
+   * separate from the normal expected-points buckets.
+   */
+  const prevBad = k >= 2 && ['mistake', 'miss', 'blunder'].includes(cls[k - 1]);
+  const missedBig = !isBest && epLoss >= 0.10 && epB >= 0.55;
+  if ((c === 'mistake' || c === 'inaccuracy') && prevBad && missedBig) c = 'miss';
+
+  /*
+   * Brilliant: best/nearly-best + genuine piece sacrifice, while the resulting position
+   * is not bad and the player was not already completely winning.
+   */
+  if ((isBest || epLoss <= 0.02) && epA >= 0.40 && epB < 0.90 &&
+      isSacrifice(fens[k - 1], m)) {
+    c = 'brilliant';
+  } else if (
+    /*
+     * Great: approximate the documented "critical to the outcome / only good move"
+     * condition by checking whether the engine's first choice is materially better
+     * than its second choice in expected points.
+     */
+    isBest && b.cp2 != null &&
+    (epB - expectedPoints(s * b.cp2, rating)) >= 0.10 &&
+    epB < 0.95
+  ) {
+    c = 'great';
+  }
+
+  if (book[k]) c = 'book';
+
+  cls[k] = c;
+  evd[k] = {b: cpB / 100, a: cpA / 100};
+  bests[k] = b.best;
+  losses[k] = epLoss * 100;          // stored as expected-points loss in percentage points
+  accs[k] = accuracyFromEpLoss(epLoss);
+}
+
+function fmtEval(e){
+  if (!e) return '';
+  if (e.mate != null) return e.mate === 0 ? '#' : (e.mate > 0 ? '' : '-') + 'M' + Math.abs(e.mate);
+  return (e.cp >= 0 ? '+' : '') + (e.cp / 100).toFixed(1);
+}
+function uciToSan(fen, u){
+  if (!u) return '';
+  const g = new Chess(fen);
+  const r = g.move({from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4]});
+  return r ? r.san : '';
+}
+
+/* ---------- start review ---------- */
+function showErr(t){ $('err').textContent = t; }
+
+function parsePgn(text){
+  const hdr = {};
+  let t = text.replace(/\r/g, '\n');
+  t = t.replace(/\[\s*(\w+)\s+["\u201C\u201D]([^"\u201C\u201D]*)["\u201C\u201D]\s*\]/g, (m, k, v) => { hdr[k] = v; return ' '; });
+  t = t.replace(/\{[^}]*\}/g, ' ').replace(/;[^\n]*/g, ' ');
+  let prev;
+  do { prev = t; t = t.replace(/\([^()]*\)/g, ' '); } while (t !== prev);
+  t = t.replace(/\$\d+/g, ' ').replace(/\d+\.+/g, ' ');
+  const tokens = t.split(/\s+/).map(x => x.replace(/[!?]+$/g, '').replace(/^0-0-0$/, 'O-O-O').replace(/^0-0$/, 'O-O'))
+    .filter(x => x && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(x));
+  return {headers: hdr, tokens};
+}
+
+function startReview(){
+  showErr('');
+  const text = $('pgn').value.trim();
+  if (!text) { showErr('আগে PGN পেস্ট করুন।'); return; }
+  if (typeof Chess === 'undefined') { showErr('chess.js লোড হয়নি। ইন্টারনেট সংযোগ দেখে পেজ রিফ্রেশ করুন।'); return; }
+  const parsed = parsePgn(text);
+  if (!parsed.tokens.length) { showErr('PGN-এ কোনো চাল খুঁজে পাওয়া যায়নি।'); return; }
+  headers = parsed.headers;
+  startFen = (headers.SetUp === '1' && headers.FEN) ? headers.FEN : START;
+  const r = new Chess(startFen);
+  fens = [startFen]; moves = [];
+  for (let i = 0; i < parsed.tokens.length; i++) {
+    const tok = parsed.tokens[i];
+    const mv = r.move(tok, {sloppy: true});
+    if (!mv) { showErr('চাল নম্বর ' + (i + 1) + ' ("' + tok + '") পড়া যায়নি বা বৈধ নয়।'); return; }
+    moves.push(mv); fens.push(r.fen());
+  }
+  if (engine && engineReady) engine.stop();
+  evals = []; cls = []; accs = []; losses = []; deep = []; bests = []; book = []; evd = []; computeBook(); ply = 0; done = false;
+  $('inputCard').classList.add('hidden');
+  $('review').classList.remove('hidden');
+  $('newGame').classList.remove('hidden');
+  $('summary').classList.add('hidden');
+  renderAll();
+  runAnalysis();
+}
+
+async function runAnalysis(){
+  const my = ++runId;
+  const prog = $('progress');
+  prog.classList.remove('hidden');
+  $('pbar').style.width = '0%';
+  if (!engineReady) {
+    $('pmsg').textContent = 'ইঞ্জিন লোড হচ্ছে…';
+    try { await ensureEngine(); }
+    catch (e) {
+      if (my !== runId) return;
+      $('pmsg').textContent = 'ইঞ্জিন লোড করা যায়নি, তাই বিশ্লেষণ হয়নি। বোর্ডে চাল দেখা যাবে। কারণ (ডিবাগ তথ্য): ' + e.message;
+      return;
+    }
+  }
+  if (my !== runId) return;
+  const [depth, ms] = $('depth').value.split(',').map(Number);
+  for (let i = 0; i < fens.length; i++) {
+    if (my !== runId) return;
+    const e = await evalPos(fens[i], depth, ms);
+    if (my !== runId) return;
+    evals[i] = e;
+    if (i >= 1) classify(i);
+    $('pmsg').textContent = 'বিশ্লেষণ চলছে: ' + (i + 1) + ' / ' + fens.length + ' অবস্থান';
+    $('pbar').style.width = ((i + 1) / fens.length * 100) + '%';
+    renderAll();
+  }
+  const flagged = new Set();
+  const big = v => Math.abs(v) >= 500;
+  for (let k = 1; k <= moves.length; k++) {
+    if (!cls[k]) continue;
+    if (BAD.includes(cls[k]) || cls[k] === 'brilliant' || cls[k] === 'great') { flagged.add(k - 1); flagged.add(k); }
+    /* a sudden evaluation swing usually means a tactic the shallow search may have misjudged */
+    if (k >= 2 && evals[k - 1] && evals[k - 2] && Math.abs(evals[k - 1].cp - evals[k - 2].cp) >= 100 &&
+        !(big(evals[k - 1].cp) && big(evals[k - 2].cp))) {
+      flagged.add(k - 2); flagged.add(k - 1); flagged.add(k);
+    }
+  }
+  const list = Array.from(flagged).sort((x, y) => x - y);
+  const deepRes = {};
+  for (let j = 0; j < list.length; j++) {
+    if (my !== runId) return;
+    $('pmsg').textContent = 'ভুল চালগুলো আরও গভীরভাবে যাচাই হচ্ছে: ' + (j + 1) + ' / ' + list.length;
+    $('pbar').style.width = ((j + 1) / list.length * 100) + '%';
+    const e = await evalPos(fens[list[j]], depth + 5, Math.round(ms * 3));
+    if (my !== runId) return;
+    deepRes[list[j]] = e;
+  }
+  for (const key in deepRes) { evals[+key] = deepRes[key]; deep[+key] = true; }
+  /* re-classify every ply against the now-final evals so neighbouring moves are always judged
+     from the same snapshot (fixes cases where only one side of a pair had been deep-verified) */
+  for (let k = 1; k <= moves.length; k++) classify(k);
+  done = true;
+  prog.classList.add('hidden');
+  renderAll();
+}
+
+/* ---------- rendering ---------- */
+
+/* Some WebViews don't honor CSS aspect-ratio inside a grid item; force the board square in JS. */
+function sizeBoard(){
+  const b = document.getElementById('board');
+  if (!b || b.offsetParent === null) return;
+  const w = b.clientWidth;
+  if (w > 0) b.style.height = w + 'px';
+}
+window.addEventListener('resize', sizeBoard);
+window.addEventListener('orientationchange', () => setTimeout(sizeBoard, 50));
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(sizeBoard).observe(document.getElementById('board'));
+}
+
+function renderAll(){
+  renderPlayers(); renderBoard(); renderEval(); renderComment(); renderMoves(); renderGraph(); renderSummary();
+}
+
+/*
+ * A plain average of per-move accuracy% overweights a game full of fine moves and lets a couple
+ * of real blunders get diluted away. Following the spirit of Lichess's published approach, this
+ * blends the plain average with a LOSS-WEIGHTED average (bigger win% losses count for more),
+ * so a handful of real blunders pull the final number down the way they should.
+ */
+function statsFor(color){
+  const counts = {}; ORDER.forEach(o => counts[o] = 0);
+  let sum = 0, n = 0, wsum = 0, wtot = 0;
+
+  for (let k = 1; k < cls.length; k++) {
+    const sc = shownCls(k);
+    if (!sc || sc === 'pending' || moves[k - 1].color !== color) continue;
+
+    counts[sc]++;
+    const a = Number.isFinite(accs[k]) ? accs[k] : 0;
+    const loss = Math.max(0, losses[k] || 0);
+
+    sum += a;
+    n++;
+
+    // Larger expected-point losses get slightly more weight, preventing many harmless
+    // moves from washing out a few serious errors.
+    const w = 1 + Math.min(4, loss / 10);
+    wsum += a * w;
+    wtot += w;
+  }
+
+  if (!n) return {counts, acc: null, n};
+  const plain = sum / n;
+  const weighted = wtot ? wsum / wtot : plain;
+  return {counts, acc: (plain * 0.35) + (weighted * 0.65), n};
+}
+
+function renderPlayers(){
+  const w = {c: 'w', name: headers.White || 'সাদা', elo: headers.WhiteElo},
+        b = {c: 'b', name: headers.Black || 'কালো', elo: headers.BlackElo};
+  const html = p => {
+    const st = statsFor(p.c);
+    return '<span class="chip ' + p.c + '"></span><strong>' + esc(p.name) + '</strong>' +
+      (p.elo && p.elo !== '?' ? '<small>(' + esc(p.elo) + ')</small>' : '') +
+      (done && st.acc != null ? '<span class="acc" title="নির্ভুলতা">' + st.acc.toFixed(1) + '%</span>' : '');
+  };
+  $('pTop').innerHTML = html(flipped ? w : b);
+  $('pBottom').innerHTML = html(flipped ? b : w);
+}
+
+function renderBoard(){
+  const g = new Chess(fens[ply]);
+  const last = ply > 0 ? moves[ply - 1] : null;
+  const c = shownCls(ply);
+  let h = '';
+  for (let r = 0; r < 8; r++) for (let col = 0; col < 8; col++) {
+    const file = flipped ? 7 - col : col, rank = flipped ? r : 7 - r;
+    const sq = 'abcdefgh'[file] + (rank + 1);
+    const dark = (file + rank) % 2 === 0;
+    const p = g.get(sq);
+    let k = 'sq ' + (dark ? 'd' : 'l');
+    if (last && (sq === last.from || sq === last.to)) k += ' hl';
+    h += '<div class="' + k + '">';
+    if (col === 0) h += '<i class="rk">' + (rank + 1) + '</i>';
+    if (r === 7) h += '<i class="fl">' + 'abcdefgh'[file] + '</i>';
+    if (p) h += '<span class="pc ' + p.color + '">' + GLYPH[p.type] + '</span>';
+    if (last && c && sq === last.to) h += '<b class="badge" style="background:' + CLS[c].color + ';color:' + CLS[c].fg + '">' + CLS[c].sym + '</b>';
+    h += '</div>';
+  }
+  h += arrowSvg();
+  $('board').innerHTML = h;
+  sizeBoard();
+}
+
+function arrowSvg(){
+  if (!$('showBest').checked || ply < 1) return '';
+  const c = shownCls(ply), bestU = bests[ply], m = moves[ply - 1];
+  if (!c || !bestU) return '';
+  if (bestU === m.from + m.to + (m.promotion || '')) return '';   // played move WAS the engine's top choice
+  const pt = sq => {
+    const f = sq.charCodeAt(0) - 97, r = +sq[1] - 1;
+    return [(flipped ? 7 - f : f) + 0.5, (flipped ? r : 7 - r) + 0.5];
+  };
+  const [x1, y1] = pt(bestU.slice(0, 2)), [x2, y2] = pt(bestU.slice(2, 4));
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const hl = 0.42, hw = 0.3;
+  const bx = x2 - ux * hl, by = y2 - uy * hl;
+  const px = -uy, py = ux;
+  const pts = [x2, y2, bx + px * hw, by + py * hw, bx - px * hw, by - py * hw].map(n => n.toFixed(3)).join(' ');
+  return '<svg class="arrows" viewBox="0 0 8 8" aria-hidden="true">' +
+    '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + bx.toFixed(3) + '" y2="' + by.toFixed(3) + '" stroke="#4f9a3a" stroke-width="0.17" stroke-linecap="round" opacity=".85"/>' +
+    '<polygon points="' + pts.replace(/(\S+) (\S+) (\S+) (\S+) (\S+) (\S+)/, '$1,$2 $3,$4 $5,$6') + '" fill="#4f9a3a" opacity=".85"/></svg>';
+}
+
+function renderEval(){
+  const e = evals[ply];
+  const bar = $('evalbar');
+  bar.classList.toggle('flip', flipped);
+  if (!e) { $('evalfill').style.height = '50%'; $('evaltxt').textContent = ''; return; }
+  const p = wp(e.cp);
+  $('evalfill').style.height = p + '%';
+  const t = $('evaltxt');
+  t.textContent = fmtEval(e);
+  const whiteAtBottom = !flipped;
+  const onBottom = (e.cp >= 0) === whiteAtBottom;
+  t.style.top = onBottom ? 'auto' : '0';
+  t.style.bottom = onBottom ? '0' : 'auto';
+  t.style.color = e.cp >= 0 ? '#16202a' : '#f4f6f8';
+}
+
+function commentFor(k){
+  const m = moves[k - 1], c = cls[k], b = evals[k - 1], a = evals[k];
+  const san = esc(m.san);
+  const best = bests[k] ? esc(uciToSan(fens[k - 1], bests[k])) : '';
+  const sug = best ? ' ' + best + ' খেললে ভালো হতো।' : '';
+  const s = m.color === 'w' ? 1 : -1;
+  let txt;
+  switch (c) {
+    case 'book': txt = san + ' ওপেনিংয়ের পরিচিত (Book) চাল।'; break;
+    case 'brilliant': txt = san + ' একটি অসাধারণ চাল! ঘুঁটি বলি দিয়েও অবস্থান শক্ত রেখেছেন।'; break;
+    case 'great': txt = san + ' প্রায় একমাত্র ভালো চাল, এবং সেটাই খেলেছেন।'; break;
+    case 'best': txt = san + ' ইঞ্জিনের পছন্দের সেরা চাল।'; break;
+    case 'excellent': txt = san + ' সেরা চালের খুব কাছাকাছি একটি চমৎকার চাল।'; break;
+    case 'good': txt = san + ' ঠিকঠাক চাল।' + sug; break;
+    case 'inaccuracy': txt = san + ' একটু অসংগতি আছে।' + sug; break;
+    case 'mistake': txt = san + ' একটি ভুল চাল।' + sug; break;
+    case 'miss': txt = san + ' — প্রতিপক্ষের ভুলের সুযোগটা কাজে লাগানো যায়নি।' + sug; break;
+    case 'blunder': txt = san + ' মারাত্মক ভুল!' + sug; break;
+  }
+  if (['mistake', 'miss', 'blunder'].includes(c) && a && a.mate != null && a.mate * s < 0) {
+    txt += ' প্রতিপক্ষ এখন ' + Math.abs(a.mate) + ' চালে মেট করতে পারে।';
+  }
+  return txt;
+}
+
+function renderComment(){
+  const box = $('comment');
+  if (ply === 0) {
+    box.style.borderLeftColor = 'var(--line)';
+    box.innerHTML = '<div class="c-head">শুরুর অবস্থান</div><p>চাল দেখতে ▶ চাপুন বা ডান তীর কী ব্যবহার করুন।</p>' +
+      '<div class="c-eval">মূল্যায়ন: ' + (evals[0] ? fmtEval(evals[0]) : '…') + '</div>';
+    return;
+  }
+  const c = shownCls(ply), m = moves[ply - 1];
+  if (c === 'pending') {
+    box.style.borderLeftColor = CLS.pending.color;
+    box.innerHTML = '<div class="c-head"><span class="ic big" style="background:' + CLS.pending.color + ';color:#fff">\u2026</span>' + esc(m.san) + '</div><p>এই চালটি গভীরভাবে যাচাই করা হচ্ছে। বিশ্লেষণ শেষ হলে চূড়ান্ত ফল দেখাবে।</p>';
+    return;
+  }
+  if (!c) {
+    box.style.borderLeftColor = 'var(--line)';
+    box.innerHTML = '<div class="c-head">' + esc(m.san) + '</div><p>' + (engineReady || !done ? 'এই চালের বিশ্লেষণ চলছে…' : 'বিশ্লেষণ পাওয়া যায়নি।') + '</p>';
+    return;
+  }
+  box.style.borderLeftColor = CLS[c].color;
+  box.innerHTML = '<div class="c-head"><span class="ic big" style="background:' + CLS[c].color + ';color:' + CLS[c].fg + '">' + CLS[c].sym + '</span>' + esc(CLS[c].name) + '</div>' +
+    '<p>' + commentFor(ply) + '</p>' + reasonHtml(ply) +
+    '<div class="c-eval">চালের পর মূল্যায়ন: ' + fmtEval(evals[ply]) + '</div>' +
+    ((!done && BAD.includes(c)) ? '<div class="c-eval" style="color:#8a5a00">প্রাথমিক ফল: বিশ্লেষণ শেষ হলে এই লেবেল বদলাতে পারে।</div>' : '') + coachBtn(ply);
+}
+
+function renderMoves(){
+  const box = $('moves');
+  const keep = box.scrollTop;
+  const firstBlack = new Chess(startFen).turn() === 'b';
+  let num = parseInt(startFen.split(' ')[5], 10) || 1;
+  const cell = k => {
+    if (k == null) return '<span></span>';
+    const c = shownCls(k);
+    const ic = c ? '<span class="ic" style="background:' + CLS[c].color + ';color:' + CLS[c].fg + '">' + CLS[c].sym + '</span>' : '';
+    return '<button class="mv' + (k === ply ? ' active' : '') + '" data-ply="' + k + '">' + ic + esc(moves[k - 1].san) + '</button>';
+  };
+  let h = '', k = 1;
+  if (firstBlack) { h += '<div class="mrow"><span class="mnum">' + num + '.</span><span></span>' + cell(k) + '</div>'; k++; num++; }
+  while (k <= moves.length) {
+    h += '<div class="mrow"><span class="mnum">' + num + '.</span>' + cell(k) + cell(k + 1 <= moves.length ? k + 1 : null) + '</div>';
+    k += 2; num++;
+  }
+  box.innerHTML = h;
+  box.scrollTop = keep;
+  const a = box.querySelector('.mv.active');
+  if (a) {
+    const top = a.offsetTop, bottom = top + a.offsetHeight;
+    if (top < box.scrollTop || bottom > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - box.clientHeight / 2);
+  }
+}
+
+function renderGraph(){
+  const N = fens.length - 1;
+  const W = 600, H = 100;
+  const xs = i => N ? i / N * W : 0;
+  let pts = [], last = -1;
+  for (let i = 0; i <= N; i++) { if (!evals[i]) break; pts.push([xs(i), H * (1 - wp(evals[i].cp) / 100)]); last = i; }
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">';
+  if (pts.length) {
+    const d = 'M0,' + H + ' ' + pts.map(p => 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' L' + pts[pts.length - 1][0].toFixed(1) + ',' + H + ' Z';
+    svg += '<path d="' + d + '" fill="#f1f4f7"/>';
+  }
+  svg += '<line x1="0" y1="' + H / 2 + '" x2="' + W + '" y2="' + H / 2 + '" stroke="#7d8996" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>';
+  svg += '<line x1="' + xs(ply).toFixed(1) + '" y1="0" x2="' + xs(ply).toFixed(1) + '" y2="' + H + '" stroke="#f0b429" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+  svg += '</svg>';
+  let dots = '';
+  for (let i = 1; i <= last; i++) {
+    const c = shownCls(i);
+    if (c === 'blunder' || c === 'mistake' || c === 'miss' || c === 'brilliant' || c === 'great') {
+      dots += '<span class="dot" style="left:' + (N ? i / N * 100 : 0) + '%;top:' + (100 - wp(evals[i].cp)) + '%;background:' + CLS[c].color + '"></span>';
+    }
+  }
+  $('graph').innerHTML = svg + dots;
+}
+
+function renderSummary(){
+  const box = $('summary');
+  const w = statsFor('w'), b = statsFor('b');
+  if (!w.n && !b.n) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const nm = (h, d) => esc(h || d);
+  const accTxt = s => s.acc == null ? '–' : s.acc.toFixed(1) + '%';
+  let h = '<h2>রিভিউ সারাংশ' + (done ? '' : ' (চলমান)') + '</h2>' +
+    '<div class="accs"><div class="accbox"><div class="who">' + nm(headers.White, 'সাদা') + ' — নির্ভুলতা</div><div class="num">' + accTxt(w) + '</div></div>' +
+    '<div class="accbox"><div class="who">' + nm(headers.Black, 'কালো') + ' — নির্ভুলতা</div><div class="num">' + accTxt(b) + '</div></div></div>' +
+    '<table class="cnt"><tr><th>চালের ধরন</th><th>সাদা</th><th>কালো</th></tr>';
+  for (const o of ORDER) {
+    const cw = w.counts[o], cb = b.counts[o];
+    h += '<tr><td><span class="ic" style="background:' + CLS[o].color + ';color:' + CLS[o].fg + '">' + CLS[o].sym + '</span>' + esc(CLS[o].name) + '</td>' +
+      '<td class="' + (cw ? '' : 'zero') + '">' + cw + '</td><td class="' + (cb ? '' : 'zero') + '">' + cb + '</td></tr>';
+  }
+  box.innerHTML = h + '</table>';
+}
+
+
+/* ---------- explanations & coach prompt ---------- */
+const TAG_EN = {book:'Book', brilliant:'Brilliant', great:'Great', best:'Best', excellent:'Excellent', good:'Good', inaccuracy:'Inaccuracy', mistake:'Mistake', miss:'Miss', blunder:'Blunder'};
+const sg = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+
+function reasonFor(k){
+  const m = moves[k - 1], b = evals[k - 1], a = evals[k];
+  if (!b || !a) return '';
+  const s = m.color === 'w' ? 1 : -1;
+  const out = [];
+  if (b.mate != null && b.mate * s > 0 && !(a.mate != null && a.mate * s > 0)) out.push('আপনার সামনে জোর করে মেট করার সুযোগ ছিল, কিন্তু এই চালে সেটা হাতছাড়া হয়েছে।');
+  try {
+    const g = new Chess(fens[k - 1]);
+    const before = matBalance(g) * s;
+    g.move({from: m.from, to: m.to, promotion: m.promotion});
+    const after = -qsearch(g, -1000, 1000, 8);
+    if (after <= before - 2) out.push('চালের পর প্রতিপক্ষ প্রায় ' + (before - after) + ' পয়েন্টের ঘুঁটি জিততে পারে।');
+  } catch (e) {}
+  const bs = bests[k] ? uciToSan(fens[k - 1], bests[k]) : '';
+  if (bs && bs.indexOf('x') >= 0 && !m.captured) out.push('সেরা চাল ' + esc(bs) + ' একটি ঘুঁটি জিততে পারত, সেই সুযোগ হাতছাড়া হয়েছে।');
+  else if (bs && bs.indexOf('+') >= 0) out.push('সেরা চাল ' + esc(bs) + ' চেক দিয়ে চাপ বজায় রাখত।');
+  return out.join(' ');
+}
+
+function reasonHtml(k){
+  const c = cls[k];
+  if (!c || c === 'book') return '';
+  let h = '';
+  const d = evd[k];
+  if (d && c !== 'best' && (d.b - d.a) > 0.05) h += '<div class="c-eval">মূল্যায়ন: ' + sg(d.b) + ' → ' + sg(d.a) + ' (কমেছে ' + (d.b - d.a).toFixed(1) + ')</div>';
+  if (BAD.includes(c)) { const r = reasonFor(k); if (r) h += '<p>' + r + '</p>'; }
+  return h;
+}
+
+function coachBtn(k){
+  if (!cls[k] || cls[k] === 'book') return '';
+  return '<div style="margin-top:10px"><button class="btn ghost" id="askCoach" data-k="' + k + '">AI কোচের কাছে ব্যাখ্যা চান</button></div><div id="coachOut"></div>';
+}
+
+function coachPrompt(k){
+  const m = moves[k - 1], c = cls[k], d = evd[k] || {b: 0, a: 0};
+  const best = bests[k] ? uciToSan(fens[k - 1], bests[k]) : '';
+  const tag = TAG_EN[c] || c;
+  const ch = sg(d.b) + ' to ' + sg(d.a) + ' (\u0394E = ' + Math.max(0, d.b - d.a).toFixed(1) + ')';
+  let task = 'Explain why ' + m.san + ' is ' + (/^[aeiou]/i.test(tag) ? 'an ' : 'a ') + tag + ' move';
+  if (best && best !== m.san) task += ' and what ' + best + ' would have achieved in this position.';
+  else task += '.';
+  return 'You are a professional chess coach reviewing a game. Do not calculate the engine evaluation by yourself; use the provided metrics. Explain the move in simple terms based on the given move-type tag. Answer in Bengali.\n\n' +
+    'Board Position (FEN): ' + fens[k - 1] + '\n' +
+    "Player's Move: " + m.san + ' (' + (m.color === 'w' ? 'White' : 'Black') + ')\n' +
+    'Engine Best Move: ' + (best || m.san) + '\n' +
+    'Evaluation Change (from the mover\'s point of view, in pawns): ' + ch + '\n' +
+    'Assigned Tag: ' + tag + '\n\n' +
+    'Task: ' + task;
+}
+
+document.getElementById('comment').addEventListener('click', e => {
+  const btn = e.target.closest('#askCoach');
+  if (!btn) return;
+  const text = coachPrompt(+btn.dataset.k);
+  const out = document.getElementById('coachOut');
+  out.innerHTML = '<p class="hint" id="coachHint">নিচের লেখাটি Gemini, ChatGPT বা Claude-এ পেস্ট করুন:</p><textarea readonly id="coachTxt" style="min-height:200px"></textarea>';
+  const ta = document.getElementById('coachTxt');
+  ta.value = text;
+  const fallback = () => { ta.focus(); ta.select(); };
+  try {
+    navigator.clipboard.writeText(text).then(() => { document.getElementById('coachHint').textContent = 'কপি হয়েছে ✓ এবার Gemini, ChatGPT বা Claude-এ পেস্ট করুন।'; }, fallback);
+  } catch (err) { fallback(); }
+});
+
+/* ---------- navigation ---------- */
+function go(p){
+  ply = Math.max(0, Math.min(moves.length, p));
+  renderBoard(); renderEval(); renderComment(); renderMoves(); renderGraph();
+}
+
+$('start').onclick = startReview;
+$('sample').onclick = () => {
+  $('pgn').value = '[Event "Paris Opera"]\n[Site "Paris FRA"]\n[Date "1858.??.??"]\n[White "Paul Morphy"]\n[Black "Duke Karl / Count Isouard"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8. Nc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 17. Rd8# 1-0';
+};
+$('newGame').onclick = () => { $('inputCard').classList.remove('hidden'); $('pgn').focus(); };
+$('bFirst').onclick = () => go(0);
+$('bPrev').onclick = () => go(ply - 1);
+$('bNext').onclick = () => go(ply + 1);
+$('bLast').onclick = () => go(moves.length);
+$('bFlip').onclick = () => { flipped = !flipped; renderPlayers(); renderBoard(); renderEval(); };
+$('showBest').onchange = renderBoard;
+$('moves').addEventListener('click', e => { const b = e.target.closest('.mv'); if (b) go(+b.dataset.ply); });
+$('graph').addEventListener('click', e => {
+  const r = $('graph').getBoundingClientRect();
+  go(Math.round((e.clientX - r.left) / r.width * (fens.length - 1)));
+});
+document.addEventListener('keydown', e => {
+  if (!moves.length || /^(TEXTAREA|SELECT|INPUT)$/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') { go(ply - 1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { go(ply + 1); e.preventDefault(); }
+  else if (e.key === 'Home') { go(0); e.preventDefault(); }
+  else if (e.key === 'End') { go(moves.length); e.preventDefault(); }
+});
+</script>
+</body>
+</html>
